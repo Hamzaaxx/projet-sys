@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>canaryfs — Documentation</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/c.min.js"></script>
+<style>
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --border:   #30363d;
+    --green:    #3fb950;
+    --green-dim:#1a4023;
+    --blue:     #58a6ff;
+    --yellow:   #e3b341;
+    --red:      #f85149;
+    --purple:   #bc8cff;
+    --text:     #c9d1d9;
+    --muted:    #6e7681;
+    --sidebar-w:260px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  nav {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    top: 0; left: 0;
+    overflow-y: auto;
+    padding: 24px 0 40px;
+    z-index: 100;
+  }
+  .nav-logo {
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .nav-logo h1 { color: var(--green); font-size: 18px; font-family: monospace; }
+  .nav-logo p  { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .nav-section { padding: 6px 20px 2px; font-size: 10px; text-transform: uppercase;
+                 letter-spacing: 1px; color: var(--muted); margin-top: 12px; }
+  nav a {
+    display: block;
+    padding: 7px 20px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 13px;
+    border-left: 2px solid transparent;
+    transition: all .15s;
+  }
+  nav a:hover   { color: var(--green); background: var(--green-dim); }
+  nav a.active  { color: var(--green); border-left-color: var(--green); background: var(--green-dim); }
+  nav a .badge  { float: right; font-size: 10px; background: var(--border);
+                  padding: 1px 6px; border-radius: 10px; color: var(--muted); }
+
+  /* ── MAIN ── */
+  main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    max-width: 900px;
+    padding: 48px 48px 80px;
+  }
+
+  /* pages */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── TYPOGRAPHY ── */
+  h1 { font-size: 28px; color: #fff; margin-bottom: 8px; }
+  h2 { font-size: 20px; color: var(--blue); margin: 40px 0 12px;
+       padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 15px; color: var(--yellow); margin: 28px 0 8px; }
+  p  { margin-bottom: 14px; color: var(--text); }
+  ul, ol { padding-left: 20px; margin-bottom: 14px; }
+  li { margin-bottom: 4px; }
+  a  { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+
+  /* ── BADGES ── */
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 32px; }
+  .badge {
+    font-size: 11px; padding: 3px 10px; border-radius: 20px; font-family: monospace;
+    font-weight: 600;
+  }
+  .badge-green  { background: #1a4023; color: var(--green); border: 1px solid var(--green); }
+  .badge-blue   { background: #0d2b45; color: var(--blue);  border: 1px solid var(--blue); }
+  .badge-yellow { background: #2d2208; color: var(--yellow);border: 1px solid var(--yellow); }
+  .badge-purple { background: #1e1230; color: var(--purple);border: 1px solid var(--purple); }
+
+  /* ── CODE ── */
+  pre {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+    position: relative;
+  }
+  pre code { font-size: 13px; line-height: 1.6; padding: 20px !important; display: block; }
+  .code-label {
+    position: absolute; top: 10px; right: 14px;
+    font-size: 10px; color: var(--muted); font-family: monospace;
+    background: var(--surface); padding: 2px 8px; border-radius: 4px;
+  }
+  code:not(pre code) {
+    background: #21262d; padding: 2px 6px; border-radius: 4px;
+    font-size: 12px; color: var(--green); font-family: monospace;
+  }
+
+  /* ── CALLOUTS ── */
+  .callout {
+    border-left: 3px solid;
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  .callout-info   { border-color: var(--blue);   background: #0d2b4540; }
+  .callout-warn   { border-color: var(--yellow);  background: #2d220840; }
+  .callout-alert  { border-color: var(--red);     background: #2d090840; }
+  .callout-green  { border-color: var(--green);   background: #1a402340; }
+  .callout strong { display: block; margin-bottom: 4px; }
+  .callout-info   strong { color: var(--blue); }
+  .callout-warn   strong { color: var(--yellow); }
+  .callout-alert  strong { color: var(--red); }
+  .callout-green  strong { color: var(--green); }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 2;
+    margin: 20px 0;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .flow .arrow { color: var(--muted); }
+  .flow .box   { color: var(--green); }
+  .flow .label { color: var(--blue); }
+  .flow .note  { color: var(--muted); font-size: 11px; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { background: var(--surface); padding: 10px 14px; text-align: left;
+       border: 1px solid var(--border); color: var(--blue); font-size: 12px; }
+  td { padding: 9px 14px; border: 1px solid var(--border); }
+  tr:nth-child(even) td { background: #161b2240; }
+
+  /* ── STEP LIST ── */
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps li {
+    counter-increment: step;
+    padding: 14px 14px 14px 52px;
+    position: relative;
+    border-left: 2px solid var(--border);
+    margin-left: 18px;
+    margin-bottom: 4px;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute; left: -18px; top: 12px;
+    width: 32px; height: 32px;
+    background: var(--green-dim); color: var(--green);
+    border: 1px solid var(--green); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+
+  /* ── GRID ── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .card h4 { color: var(--green); font-size: 13px; margin-bottom: 8px; font-family: monospace; }
+  .card p  { font-size: 13px; color: var(--muted); margin: 0; }
+
+  /* ── EXPLANATION BLOCK ── */
+  .explain {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+  .explain pre { margin: 0; border-radius: 0; border: none; border-right: 1px solid var(--border); }
+  .explain-notes { padding: 20px; background: var(--surface); font-size: 13px; }
+  .explain-notes .note-item { margin-bottom: 16px; }
+  .explain-notes .note-item .line-ref { color: var(--yellow); font-family: monospace; font-size: 11px; margin-bottom: 4px; }
+
+  @media (max-width: 900px) {
+    nav { width: 200px; }
+    main { margin-left: 200px; padding: 24px; }
+    .grid2, .explain { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<nav id="sidebar">
+  <div class="nav-logo">
+    <h1>🐦 canaryfs</h1>
+    <p>ENSET Mohammedia — SE 2026</p>
+  </div>
+
+  <div class="nav-section">Introduction</div>
+  <a href="#" onclick="show('overview')" id="nav-overview" class="active">Overview</a>
+  <a href="#" onclick="show('flow')"     id="nav-flow">How It Works</a>
+
+  <div class="nav-section">Main Script</div>
+  <a href="#" onclick="show('main')"     id="nav-main">canaryfs <span class="badge">entry</span></a>
+
+  <div class="nav-section">Library — lib/</div>
+  <a href="#" onclick="show('plant')"   id="nav-plant">plant.sh</a>
+  <a href="#" onclick="show('monitor')" id="nav-monitor">monitor.sh</a>
+  <a href="#" onclick="show('thread')"  id="nav-thread">monitor_thread.c <span class="badge">C</span></a>
+  <a href="#" onclick="show('log')"     id="nav-log">log.sh</a>
+  <a href="#" onclick="show('alert')"   id="nav-alert">alert.sh</a>
+  <a href="#" onclick="show('restore')" id="nav-restore">restore.sh</a>
+
+  <div class="nav-section">Tests</div>
+  <a href="#" onclick="show('tests')"   id="nav-tests">test scenarios</a>
+</nav>
+
+<!-- ═══════════════════════ MAIN ═══════════════════════ -->
+<main>
+
+<!-- ─────────────── PAGE: OVERVIEW ─────────────── -->
+<div class="page active" id="page-overview">
+  <h1>canaryfs</h1>
+  <p class="subtitle">Honeypot Canary File System Monitor — ENSET Mohammedia 2026</p>
+  <div class="badge-row">
+    <span class="badge badge-green">Bash 4+</span>
+    <span class="badge badge-blue">inotify-tools</span>
+    <span class="badge badge-yellow">POSIX pthreads</span>
+    <span class="badge badge-purple">C</span>
+  </div>
+
+  <h2>What is canaryfs?</h2>
+  <p>canaryfs is a cybersecurity tool that plants <strong>fake sensitive files</strong> (called canaries or honeypot files) inside a directory, then silently watches them using the Linux kernel's <strong>inotify</strong> subsystem. The moment any user, process, or malware touches one of these files, canaryfs captures a full forensic snapshot and fires an alert.</p>
+  <p>This technique is used in real enterprise environments under the names <em>canary tokens</em> or <em>honeypot files</em>.</p>
+
+  <h2>Canary File Types</h2>
+  <table>
+    <tr><th>Filename</th><th>Mimics</th><th>Why attackers want it</th></tr>
+    <tr><td><code>id_rsa</code></td><td>SSH private key</td><td>Used to log into remote servers without a password</td></tr>
+    <tr><td><code>.env</code></td><td>Environment file</td><td>Contains DB passwords, API keys, JWT secrets</td></tr>
+    <tr><td><code>credentials.json</code></td><td>GCP/AWS credentials</td><td>Cloud account access</td></tr>
+    <tr><td><code>shadow.bak</code></td><td>Password hash backup</td><td>Can be cracked offline with hashcat/john</td></tr>
+    <tr><td><code>backup.sql</code></td><td>Database dump</td><td>Contains user data, hashed passwords, API keys</td></tr>
+  </table>
+
+  <h2>Project Structure</h2>
+  <div class="flow"><span class="box">canaryfs/</span>
+├── <span class="box">canaryfs</span>              <span class="note">← main executable script (entry point)</span>
+├── <span class="box">canaryfs.conf</span>         <span class="note">← default configuration values</span>
+├── lib/
+│   ├── <span class="box">plant.sh</span>          <span class="note">← creates fake bait files</span>
+│   ├── <span class="box">monitor.sh</span>        <span class="note">← inotify watcher + forensic capture</span>
+│   ├── <span class="box">monitor_thread.c</span>  <span class="note">← real POSIX threads (C)</span>
+│   ├── <span class="box">alert.sh</span>          <span class="note">← syslog + desktop notifications</span>
+│   ├── <span class="box">log.sh</span>            <span class="note">← logging utilities</span>
+│   └── <span class="box">restore.sh</span>        <span class="note">← remove canaries (root only)</span>
+├── canaries/
+│   ├── id_rsa.tpl, .env.tpl ...  <span class="note">← optional file templates</span>
+└── tests/
+    ├── <span class="box">test_light.sh</span>     <span class="note">← 5 canaries, 1 dir</span>
+    ├── <span class="box">test_medium.sh</span>    <span class="note">← 50 canaries, 5 dirs</span>
+    └── <span class="box">test_heavy.sh</span>     <span class="note">← 200 canaries, 10 dirs</span></div>
+
+  <h2>The 3 Execution Modes</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>-f  Fork</h4>
+      <p>Each canary file is watched by its own <strong>child process</strong> created with <code>( ) &</code>. The parent process waits for all children with <code>wait</code>.</p>
+    </div>
+    <div class="card">
+      <h4>-t  Thread</h4>
+      <p>A compiled C program (<code>monitor_thread</code>) uses real <strong>POSIX pthreads</strong>. Each thread watches one canary file. All threads share the same process memory.</p>
+    </div>
+    <div class="card">
+      <h4>-s  Subshell</h4>
+      <p>All watchers run inside a <strong>detached background subshell</strong> <code>( ... ) &</code>. The terminal is immediately free — canaryfs runs as a daemon.</p>
+    </div>
+    <div class="card">
+      <h4>default (no flag)</h4>
+      <p>A single <code>inotifywait</code> watches the entire directory recursively. Only fires for files that are in the canary registry.</p>
+    </div>
+  </div>
+
+  <h2>Log Format</h2>
+  <pre><code class="language-bash">2026-04-29-14-32-01 : hamza : INFOS : Starting canaryfs on /home/hamza [mode: thread]
+2026-04-29-14-32-01 : hamza : INFOS : Planted: /home/hamza/.env
+2026-04-29-14-32-05 : hamza : ALERT : canary accessed — file=/home/hamza/.env event=OPEN pid=4821 process=cat uid=1000 ppid=4800
+2026-04-29-14-32-10 : hamza : ERROR : inotifywait not found — install inotify-tools</code></pre>
+
+  <h2>Error Codes</h2>
+  <table>
+    <tr><th>Code</th><th>Meaning</th></tr>
+    <tr><td><code>100</code></td><td>Unknown option passed</td></tr>
+    <tr><td><code>101</code></td><td>Missing mandatory parameter (target directory)</td></tr>
+    <tr><td><code>102</code></td><td>inotifywait not installed</td></tr>
+    <tr><td><code>103</code></td><td>Target directory does not exist</td></tr>
+    <tr><td><code>104</code></td><td>Restore (-r) requires root privileges</td></tr>
+  </table>
+</div>
+
+<!-- ─────────────── PAGE: HOW IT WORKS ─────────────── -->
+<div class="page" id="page-flow">
+  <h1>How It Works</h1>
+  <p class="subtitle">Full execution flow from command to alert</p>
+
+  <h2>Step-by-step flow</h2>
+  <ol class="steps">
+    <li>
+      <strong>User runs the command</strong><br/>
+      <code>./canaryfs -t -p 5 /tmp/honeypot</code><br/>
+      <code>main()</code> is called with all arguments.
+    </li>
+    <li>
+      <strong>parse_args() — read flags</strong><br/>
+      <code>getopts</code> loops through flags. Sets <code>EXEC_MODE=thread</code>, <code>CANARY_COUNT=5</code>, <code>TARGET_DIR=/tmp/honeypot</code>.
+    </li>
+    <li>
+      <strong>init_log_dir() — prepare logging</strong><br/>
+      Creates <code>/var/log/canaryfs/</code> if it doesn't exist. Opens <code>history.log</code>.
+    </li>
+    <li>
+      <strong>validate() — safety checks</strong><br/>
+      Verifies <code>inotifywait</code> is installed, a target directory was given, and it actually exists.
+    </li>
+    <li>
+      <strong>compile_thread_monitor() — build C binary (thread mode only)</strong><br/>
+      If <code>lib/monitor_thread</code> doesn't exist yet, it runs <code>gcc</code> to compile <code>monitor_thread.c</code>.
+    </li>
+    <li>
+      <strong>plant_canaries() — create bait files</strong><br/>
+      Writes 5 fake files into <code>/tmp/honeypot</code>. Records each path in <code>/tmp/.canaryfs_registry</code>.
+    </li>
+    <li>
+      <strong>run_thread() — start watchers</strong><br/>
+      Reads all paths from the registry and passes them to the C binary: <code>monitor_thread history.log file1 file2 ...</code>
+    </li>
+    <li>
+      <strong>watch_file() — inotify loop (inside C thread)</strong><br/>
+      Each thread runs <code>inotifywait -m</code> on its file. Blocks waiting for kernel events.
+    </li>
+    <li>
+      <strong>capture_forensics() — who did it?</strong><br/>
+      On event: runs <code>lsof</code> to find the process accessing the file, reads <code>/proc/&lt;pid&gt;/status</code> for the parent PID.
+    </li>
+    <li>
+      <strong>log_alert() + fire_alert() — report</strong><br/>
+      Writes the ALERT line to the terminal and log file. If <code>-a</code> was set, also writes to syslog and sends a desktop notification.
+    </li>
+  </ol>
+
+  <h2>Data Flow Diagram</h2>
+  <div class="flow">  <span class="label">User</span>
+    │
+    ▼
+  <span class="box">canaryfs -t -p 5 /tmp/honeypot</span>
+    │
+    ├─ parse_args()      <span class="note">EXEC_MODE=thread, CANARY_COUNT=5, TARGET_DIR=/tmp/honeypot</span>
+    ├─ validate()        <span class="note">inotifywait ✓  directory ✓</span>
+    ├─ compile_monitor() <span class="note">gcc monitor_thread.c -lpthread → lib/monitor_thread</span>
+    ├─ plant_canaries()  <span class="note">writes .env, id_rsa, ... → /tmp/.canaryfs_registry</span>
+    └─ run_thread()
+         └─ monitor_thread history.log /tmp/honeypot/.env /tmp/honeypot/id_rsa ...
+              │
+              ├─ pthread_create(watch_file, ".env")   <span class="note">Thread 1</span>
+              ├─ pthread_create(watch_file, "id_rsa") <span class="note">Thread 2</span>
+              └─ pthread_create(watch_file, ...)      <span class="note">Thread N</span>
+                    │
+                    ▼
+              inotifywait -m -e access,open,modify &lt;file&gt;
+                    │
+                    │  [ATTACKER touches the file]
+                    ▼
+              capture_forensics()
+                    ├─ lsof &lt;file&gt;               <span class="note">→ pid, process name, uid</span>
+                    ├─ /proc/&lt;pid&gt;/status         <span class="note">→ ppid</span>
+                    └─ write_alert()
+                         ├─ stdout (terminal)
+                         ├─ history.log
+                         ├─ syslog  (if -a)
+                         └─ notify-send (if -a)</div>
+
+  <h2>Kernel Interface: inotify</h2>
+  <p>inotify is a Linux kernel subsystem that lets programs <strong>subscribe to filesystem events</strong>. Instead of checking a file repeatedly (polling), the kernel notifies the program the instant something happens. This makes canaryfs efficient — it uses zero CPU while waiting.</p>
+  <table>
+    <tr><th>Event</th><th>Triggered when</th></tr>
+    <tr><td><code>access</code></td><td>File was read</td></tr>
+    <tr><td><code>open</code></td><td>File was opened</td></tr>
+    <tr><td><code>modify</code></td><td>File contents were changed</td></tr>
+  </table>
+
+  <h2>Forensic Capture: lsof + /proc</h2>
+  <p>When inotify fires, canaryfs immediately runs two OS queries to identify the attacker:</p>
+  <div class="grid2">
+    <div class="card">
+      <h4>lsof &lt;file&gt;</h4>
+      <p>Lists all processes that currently have the file open. Returns the process name, PID, and UID of whoever is accessing the canary.</p>
+    </div>
+    <div class="card">
+      <h4>/proc/&lt;pid&gt;/status</h4>
+      <p>The Linux /proc filesystem exposes live process information. The <code>PPid</code> field reveals which process launched the attacker's process (the parent).</p>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── PAGE: MAIN SCRIPT ─────────────── -->
+<div class="page" id="page-main">
+  <h1>canaryfs</h1>
+  <p class="subtitle">Main executable script — entry point of the entire program</p>
+
+  <h2>Full Source</h2>
+  <pre style="position:relative"><div class="code-label">canaryfs</div><code class="language-bash">#!/bin/bash
+# canaryfs — Honeypot Canary File System Monitor
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+LOG_DIR="/var/log/canaryfs"
+LOG_FILE="${LOG_DIR}/history.log"
+CANARY_COUNT=10
+TARGET_DIR=""
+EXEC_MODE=""
+ALERT_MODE=false
+CANARY_REGISTRY="/tmp/.canaryfs_registry"
+MONITOR_THREAD_BIN="${SCRIPT_DIR}/lib/monitor_thread"
+
+source "${SCRIPT_DIR}/lib/log.sh"
+source "${SCRIPT_DIR}/lib/plant.sh"
+source "${SCRIPT_DIR}/lib/monitor.sh"
+source "${SCRIPT_DIR}/lib/alert.sh"
+source "${SCRIPT_DIR}/lib/restore.sh"</code></pre>
+
+  <h3>Global Variables</h3>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Purpose</th></tr>
+    <tr><td><code>SCRIPT_DIR</code></td><td>(computed)</td><td>Absolute path to the canaryfs directory — used to find lib/ files</td></tr>
+    <tr><td><code>LOG_DIR</code></td><td>/var/log/canaryfs</td><td>Where the log file is stored (overridable with -l)</td></tr>
+    <tr><td><code>CANARY_COUNT</code></td><td>10</td><td>Number of bait files to plant (overridable with -p)</td></tr>
+    <tr><td><code>EXEC_MODE</code></td><td>""</td><td>fork, thread, subshell, or empty (default)</td></tr>
+    <tr><td><code>ALERT_MODE</code></td><td>false</td><td>When true, also logs to syslog and sends desktop notification</td></tr>
+    <tr><td><code>CANARY_REGISTRY</code></td><td>/tmp/.canaryfs_registry</td><td>Plain text file listing every planted canary path</td></tr>
+    <tr><td><code>MONITOR_THREAD_BIN</code></td><td>lib/monitor_thread</td><td>Path to the compiled C thread monitor binary</td></tr>
+  </table>
+
+  <div class="callout callout-warn">
+    <strong>Important ordering</strong>
+    <code>SCRIPT_DIR</code> must be defined <em>before</em> <code>MONITOR_THREAD_BIN</code> because <code>MONITOR_THREAD_BIN</code> uses <code>${SCRIPT_DIR}</code> in its value. If the order were reversed, the binary path would be wrong.
+  </div>
+
+  <h2>Argument Parsing — parse_args()</h2>
+  <pre><code class="language-bash">parse_args() {
+    local opt
+    while getopts ":hftsal:rp:" opt; do
+        case "${opt}" in
+            h) show_help; exit 0 ;;
+            f) EXEC_MODE="fork" ;;
+            t) EXEC_MODE="thread" ;;
+            s) EXEC_MODE="subshell" ;;
+            a) ALERT_MODE=true ;;
+            l) LOG_DIR="${OPTARG}"; LOG_FILE="${LOG_DIR}/history.log" ;;
+            r) run_restore; exit $? ;;
+            p) CANARY_COUNT="${OPTARG}" ;;
+            :) log_error "Option -${OPTARG} requires an argument"; show_help; exit 101 ;;
+            ?) log_error "Unknown option: -${OPTARG}";             show_help; exit 100 ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+    TARGET_DIR="$1"
+}</code></pre>
+
+  <h3>How getopts works</h3>
+  <p>The string <code>":hftsal:rp:"</code> tells getopts which flags are valid:</p>
+  <ul>
+    <li>Leading <code>:</code> — silent mode: handle errors ourselves (the <code>?</code> and <code>:</code> cases)</li>
+    <li>A letter alone (e.g. <code>f</code>) — flag with no argument</li>
+    <li>A letter followed by <code>:</code> (e.g. <code>l:</code>) — flag that requires an argument, stored in <code>$OPTARG</code></li>
+  </ul>
+  <p>After the loop, <code>shift $((OPTIND - 1))</code> removes all processed flags from <code>$@</code>, leaving only the target directory as <code>$1</code>.</p>
+
+  <h2>Validation — validate()</h2>
+  <pre><code class="language-bash">validate() {
+    if ! command -v inotifywait &>/dev/null; then
+        log_error "inotifywait not found — install inotify-tools"
+        show_help; exit 102
+    fi
+    if [[ -z "${TARGET_DIR}" ]]; then
+        log_error "Missing mandatory parameter: target_directory"
+        show_help; exit 101
+    fi
+    if [[ ! -d "${TARGET_DIR}" ]]; then
+        log_error "Target directory does not exist: ${TARGET_DIR}"
+        show_help; exit 103
+    fi
+}</code></pre>
+  <p>Three checks in order: tool available → argument given → directory exists. Each failure prints the help and exits with a specific code.</p>
+
+  <h2>The Four Execution Modes</h2>
+  <pre><code class="language-bash">run_fork() {
+    log_info "Mode: fork — one child process per canary"
+    while IFS= read -r canary_file; do
+        ( monitor_file "${canary_file}" ) &   # ( ) creates a subshell = new child process
+    done &lt; "${CANARY_REGISTRY}"
+    wait   # parent blocks here until ALL children exit
+    log_info "All fork watchers exited"
+}
+
+run_thread() {
+    log_info "Mode: thread — POSIX pthreads via C"
+    mapfile -t files &lt; "${CANARY_REGISTRY}"  # read registry into array
+    "${MONITOR_THREAD_BIN}" "${LOG_FILE}" "${files[@]}"  # pass all files to C binary
+    log_info "All thread watchers exited"
+}
+
+run_subshell() {
+    log_info "Mode: subshell — background daemon"
+    (                                          # open a subshell
+        while IFS= read -r canary_file; do
+            monitor_file "${canary_file}" &
+        done &lt; "${CANARY_REGISTRY}"
+        wait
+    ) &                                        # detach the whole subshell to background
+    log_info "Daemon PID: $!"                  # $! = PID of the last background process
+}
+
+run_default() {
+    log_info "Mode: default — sequential directory watch"
+    monitor_directory "${TARGET_DIR}"          # one inotifywait for the whole dir
+}</code></pre>
+
+  <table>
+    <tr><th>Mode</th><th>Mechanism</th><th>Parallel?</th><th>Blocking?</th></tr>
+    <tr><td>fork</td><td><code>( ) &</code> per file + <code>wait</code></td><td>Yes</td><td>Yes — parent waits</td></tr>
+    <tr><td>thread</td><td>C <code>pthread_create</code></td><td>Yes</td><td>Yes — joins all threads</td></tr>
+    <tr><td>subshell</td><td><code>( ) &</code> group</td><td>Yes</td><td>No — returns immediately</td></tr>
+    <tr><td>default</td><td>Single <code>inotifywait -r</code></td><td>No</td><td>Yes</td></tr>
+  </table>
+
+  <h2>Auto-Compile — compile_thread_monitor()</h2>
+  <pre><code class="language-bash">compile_thread_monitor() {
+    [[ -x "${MONITOR_THREAD_BIN}" ]] && return   # already compiled, skip
+    if ! command -v gcc &>/dev/null; then
+        log_error "gcc not found — install build-essential"
+        exit 1
+    fi
+    log_info "Compiling monitor_thread.c ..."
+    gcc -o "${MONITOR_THREAD_BIN}" "${SCRIPT_DIR}/lib/monitor_thread.c" -lpthread -Wall -O2 \
+        || { log_error "Compilation failed"; exit 1; }
+    log_info "Compiled: ${MONITOR_THREAD_BIN}"
+}</code></pre>
+  <p>This function only runs when <code>-t</code> is used. It checks if the binary already exists (<code>-x</code> = exists and is executable). If not, it compiles it automatically. The <code>-lpthread</code> flag links the POSIX threads library.</p>
+
+  <h2>Entry Point — main()</h2>
+  <pre><code class="language-bash">main() {
+    parse_args "$@"
+    init_log_dir
+    validate
+    [[ "${EXEC_MODE}" == "thread" ]] && compile_thread_monitor
+    run
+}
+
+main "$@"</code></pre>
+  <p>The final line <code>main "$@"</code> passes all original command-line arguments to <code>main()</code>. This is the only line that executes at the top level — everything else is a function call.</p>
+</div>
+
+<!-- ─────────────── PAGE: PLANT.SH ─────────────── -->
+<div class="page" id="page-plant">
+  <h1>lib/plant.sh</h1>
+  <p class="subtitle">Creates fake bait files in the target directory and registers them</p>
+
+  <h2>Full Source</h2>
+  <pre style="position:relative"><div class="code-label">lib/plant.sh</div><code class="language-bash">#!/bin/bash
+CANARY_TYPES=("id_rsa" ".env" "credentials.json" "shadow.bak" "backup.sql")
+
+plant_canaries() {
+    local target_dir="$1"
+    local count="$2"
+
+    > "${CANARY_REGISTRY}"    # empty the registry file
+    log_info "Planting ${count} canary files in ${target_dir}"
+
+    for (( i=0; i&lt;count; i++ )); do
+        local type="${CANARY_TYPES[$((i % ${#CANARY_TYPES[@]}))]}"
+        local dest="${target_dir}/${type}"
+        _write_canary "${type}" "${dest}"
+        echo "${dest}" >> "${CANARY_REGISTRY}"
+        log_info "Planted: ${dest}"
+    done
+
+    log_info "Done — ${count} canary files planted"
+}
+
+_write_canary() {
+    local type="$1"
+    local dest="$2"
+    local template="${SCRIPT_DIR}/canaries/${type}.tpl"
+
+    if [[ -f "${template}" ]]; then
+        cp "${template}" "${dest}"   # use custom template if it exists
+    else
+        case "${type}" in
+            id_rsa) cat > "${dest}" &lt;&lt;'EOF'
+-----BEGIN OPENSSH PRIVATE KEY-----
+... fake key data ...
+-----END OPENSSH PRIVATE KEY-----
+EOF
+            ;;
+            .env) cat > "${dest}" &lt;&lt;'EOF'
+APP_ENV=production
+DB_PASS=Sup3rS3cr3tP@ssw0rd!
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7FAKE123
+EOF
+            ;;
+            # ... other types ...
+        esac
+    fi
+
+    chmod 600 "${dest}"    # make it look like a real secret file
+}</code></pre>
+
+  <h2>How the file type cycle works</h2>
+  <p>The expression <code>i % ${#CANARY_TYPES[@]}</code> is a modulo operation:</p>
+  <ul>
+    <li><code>${#CANARY_TYPES[@]}</code> = number of elements in the array = 5</li>
+    <li>When <code>i=0</code>: 0 % 5 = 0 → <code>id_rsa</code></li>
+    <li>When <code>i=1</code>: 1 % 5 = 1 → <code>.env</code></li>
+    <li>When <code>i=5</code>: 5 % 5 = 0 → <code>id_rsa</code> again</li>
+  </ul>
+  <p>So if you plant 12 canaries, it cycles through all 5 types twice, then plants 2 more. This means each directory gets at most one of each type.</p>
+
+  <div class="callout callout-info">
+    <strong>What is CANARY_REGISTRY?</strong>
+    It is a plain text file at <code>/tmp/.canaryfs_registry</code>. Each line is the full path to one planted canary. The monitor uses this list to know which files to watch, and restore uses it to know which files to delete.
+  </div>
+
+  <h2>Why chmod 600?</h2>
+  <p><code>chmod 600</code> sets permissions to <strong>read/write for owner only</strong> — no access for group or others. Real SSH keys and credential files always have this permission. Without it, the fake files would look suspicious to an attacker checking file metadata.</p>
+
+  <h2>Template vs Inline</h2>
+  <p><code>_write_canary</code> first checks if a <code>.tpl</code> file exists in the <code>canaries/</code> folder. This lets you customize the fake file content without editing the script. If no template exists, it falls back to the hardcoded inline content.</p>
+</div>
+
+<!-- ─────────────── PAGE: MONITOR.SH ─────────────── -->
+<div class="page" id="page-monitor">
+  <h1>lib/monitor.sh</h1>
+  <p class="subtitle">Watches canary files with inotify and captures forensic data on access</p>
+
+  <h2>Full Source</h2>
+  <pre style="position:relative"><div class="code-label">lib/monitor.sh</div><code class="language-bash">#!/bin/bash
+
+monitor_file() {
+    local target_file="$1"
+
+    inotifywait -m -e access,open,modify "${target_file}" 2>/dev/null \
+    | while read -r dir event file; do
+        _capture_forensics "${dir}${file:-$(basename "${target_file}")}" "${event}"
+    done
+}
+
+monitor_directory() {
+    local target_dir="$1"
+
+    log_info "Watching directory: ${target_dir}"
+    inotifywait -m -r -e access,open,modify \
+        --format '%w%f %e %T' --timefmt '%Y-%m-%d-%H-%M-%S' \
+        "${target_dir}" 2>/dev/null \
+    | while read -r full_path event timestamp; do
+        if grep -qxF "${full_path}" "${CANARY_REGISTRY}" 2>/dev/null; then
+            _capture_forensics "${full_path}" "${event}"
+        fi
+    done
+}
+
+_capture_forensics() {
+    local file="$1"
+    local event="$2"
+
+    local lsof_info proc_name pid uid ppid
+    lsof_info=$(lsof "${file}" 2>/dev/null | tail -n +2 | head -1)
+    proc_name=$(echo "${lsof_info}" | awk '{print $1}')
+    pid=$(echo "${lsof_info}"       | awk '{print $2}')
+    uid=$(echo "${lsof_info}"       | awk '{print $3}')
+
+    if [[ -z "${pid}" ]]; then
+        pid="unknown"; proc_name="unknown"; uid="$(id -u)"
+    fi
+
+    ppid=$(grep PPid "/proc/${pid}/status" 2>/dev/null | awk '{print $2}')
+    ppid="${ppid:-unknown}"
+
+    local msg="canary accessed — file=${file} event=${event} pid=${pid} process=${proc_name} uid=${uid} ppid=${ppid}"
+    log_alert "${msg}"
+    fire_alert "${msg}"
+}</code></pre>
+
+  <h2>monitor_file() vs monitor_directory()</h2>
+  <table>
+    <tr><th></th><th>monitor_file()</th><th>monitor_directory()</th></tr>
+    <tr><td>Used by</td><td>fork mode, thread mode, subshell mode</td><td>default mode</td></tr>
+    <tr><td>Watches</td><td>One specific file</td><td>Entire directory (recursively with -r)</td></tr>
+    <tr><td>Filter</td><td>Not needed — file is already a canary</td><td>Checks registry: only alerts for canary files</td></tr>
+    <tr><td>inotifywait flags</td><td><code>-m</code> (monitor mode)</td><td><code>-m -r</code> (recursive)</td></tr>
+  </table>
+
+  <h2>inotifywait flags explained</h2>
+  <table>
+    <tr><th>Flag</th><th>Meaning</th></tr>
+    <tr><td><code>-m</code></td><td>Monitor mode — keep running forever, don't exit after first event</td></tr>
+    <tr><td><code>-r</code></td><td>Recursive — watch all subdirectories too</td></tr>
+    <tr><td><code>-e access,open,modify</code></td><td>Only watch for these three event types</td></tr>
+    <tr><td><code>--format '%w%f %e %T'</code></td><td>Custom output: full path, event name, timestamp</td></tr>
+    <tr><td><code>2>/dev/null</code></td><td>Hide inotifywait's own startup messages</td></tr>
+  </table>
+
+  <h2>_capture_forensics() — step by step</h2>
+  <ol class="steps">
+    <li>
+      <strong>Run lsof on the accessed file</strong><br/>
+      <code>lsof "${file}"</code> lists all processes that have the file open right now.<br/>
+      <code>tail -n +2</code> skips the header line. <code>head -1</code> takes only the first process.
+    </li>
+    <li>
+      <strong>Extract process info with awk</strong><br/>
+      Column 1 = process name, Column 2 = PID, Column 3 = UID.<br/>
+      Example lsof output: <code>cat   4821 hamza  4r  REG  ...</code>
+    </li>
+    <li>
+      <strong>Fallback if lsof returns nothing</strong><br/>
+      If the process closed the file before lsof ran, pid/process are set to "unknown".<br/>
+      uid falls back to <code>id -u</code> (the UID of whoever is running canaryfs).
+    </li>
+    <li>
+      <strong>Read PPID from /proc</strong><br/>
+      <code>/proc/&lt;pid&gt;/status</code> is a live view of the process. The <code>PPid:</code> line gives the parent process ID — useful to trace back to the shell or script that launched the attacker's command.
+    </li>
+    <li>
+      <strong>Build and send the alert message</strong><br/>
+      Calls <code>log_alert()</code> to write to the log file and <code>fire_alert()</code> for syslog/notify-send.
+    </li>
+  </ol>
+</div>
+
+<!-- ─────────────── PAGE: MONITOR_THREAD.C ─────────────── -->
+<div class="page" id="page-thread">
+  <h1>lib/monitor_thread.c</h1>
+  <p class="subtitle">Real POSIX threads in C — one thread per canary file</p>
+
+  <div class="callout callout-info">
+    <strong>Why C?</strong>
+    Bash has no real threads. Background jobs (<code>&</code>) are separate processes, not threads. To satisfy the <code>-t</code> requirement with actual POSIX pthreads (shared memory, same process), we write a small C program and call it from Bash.
+  </div>
+
+  <h2>Full Source</h2>
+  <pre style="position:relative"><div class="code-label">lib/monitor_thread.c</div><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;pthread.h&gt;      // POSIX threads
+#include &lt;unistd.h&gt;
+#include &lt;time.h&gt;
+#include &lt;pwd.h&gt;           // getpwuid — username from UID
+
+// Each thread gets this struct as its argument
+typedef struct {
+    char file[512];       // path to the canary file this thread watches
+    char log_file[512];   // path to history.log
+} WatchArgs;
+
+// Write one ALERT line to terminal and log file
+static void write_alert(const char *log_file, const char *canary_file,
+                        const char *event, const char *pid,
+                        const char *process, const char *uid, const char *ppid) {
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    char timestamp[32];
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d-%H-%M-%S", t);
+
+    const char *username = getpwuid(getuid()) ? getpwuid(getuid())->pw_name : "unknown";
+
+    char line[2048];
+    snprintf(line, sizeof(line),
+        "%s : %s : ALERT : canary accessed — file=%s event=%s pid=%s process=%s uid=%s ppid=%s\n",
+        timestamp, username, canary_file, event, pid, process, uid, ppid);
+
+    fputs(line, stdout); fflush(stdout);   // print to terminal
+
+    FILE *fp = fopen(log_file, "a");       // append to log file
+    if (fp) { fputs(line, fp); fclose(fp); }
+}
+
+// Run lsof + read /proc to identify who accessed the file
+static void capture_forensics(const char *canary_file, const char *event,
+                               const char *log_file) {
+    char cmd[1024], lsof_out[512] = {0};
+    char proc_name[128] = "unknown", pid_str[32] = "unknown";
+    char uid_str[32]    = "unknown", ppid_str[32] = "unknown";
+
+    snprintf(cmd, sizeof(cmd), "lsof '%s' 2>/dev/null | awk 'NR==2'", canary_file);
+    FILE *fp = popen(cmd, "r");
+    if (fp) {
+        if (fgets(lsof_out, sizeof(lsof_out), fp))
+            sscanf(lsof_out, "%127s %31s %31s", proc_name, pid_str, uid_str);
+        pclose(fp);
+    }
+
+    if (strcmp(pid_str, "unknown") != 0) {
+        char proc_path[64];
+        snprintf(proc_path, sizeof(proc_path), "/proc/%s/status", pid_str);
+        FILE *ps = fopen(proc_path, "r");
+        if (ps) {
+            char buf[128];
+            while (fgets(buf, sizeof(buf), ps))
+                if (strncmp(buf, "PPid:", 5) == 0) {
+                    sscanf(buf + 5, "%31s", ppid_str); break;
+                }
+            fclose(ps);
+        }
+    }
+
+    write_alert(log_file, canary_file, event, pid_str, proc_name, uid_str, ppid_str);
+}
+
+// Thread function: each thread runs this, watching one file
+void *watch_file(void *arg) {
+    WatchArgs *w = (WatchArgs *)arg;
+
+    char cmd[600];
+    snprintf(cmd, sizeof(cmd),
+        "inotifywait -m -e access,open,modify --format '%%e' '%s' 2>/dev/null",
+        w->file);
+
+    FILE *fp = popen(cmd, "r");   // open inotifywait as a stream
+    if (!fp) { free(w); return NULL; }
+
+    char event[64];
+    while (fgets(event, sizeof(event), fp)) {   // block until event
+        event[strcspn(event, "\n")] = '\0';     // strip newline
+        capture_forensics(w->file, event, w->log_file);
+    }
+
+    pclose(fp); free(w); return NULL;
+}
+
+int main(int argc, char *argv[]) {
+    // argv: monitor_thread &lt;log_file&gt; &lt;file1&gt; &lt;file2&gt; ...
+    if (argc &lt; 3) {
+        fprintf(stderr, "Usage: monitor_thread &lt;log_file&gt; &lt;file1&gt; [file2 ...]\n");
+        return 1;
+    }
+
+    char *log_file = argv[1];
+    int n = argc - 2;   // number of canary files
+
+    pthread_t *threads = malloc((size_t)n * sizeof(pthread_t));
+
+    for (int i = 0; i &lt; n; i++) {
+        WatchArgs *w = malloc(sizeof(WatchArgs));
+        strncpy(w->file,     argv[i + 2], 511);
+        strncpy(w->log_file, log_file,    511);
+        pthread_create(&threads[i], NULL, watch_file, w);
+        //             ^           ^      ^            ^
+        //        thread ID    attrs    function    argument
+    }
+
+    for (int i = 0; i &lt; n; i++)
+        pthread_join(threads[i], NULL);   // wait for each thread to finish
+
+    free(threads);
+    return 0;
+}</code></pre>
+
+  <h2>Key Concepts</h2>
+
+  <h3>WatchArgs struct</h3>
+  <p>When <code>pthread_create</code> launches a thread, it can only pass a single <code>void*</code> argument. We pack everything the thread needs (file path + log file path) into a <code>WatchArgs</code> struct, allocate it with <code>malloc</code>, and pass its pointer. Each thread receives its own copy.</p>
+
+  <h3>pthread_create</h3>
+  <pre><code class="language-c">pthread_create(&threads[i], NULL, watch_file, w);</code></pre>
+  <table>
+    <tr><th>Argument</th><th>Meaning</th></tr>
+    <tr><td><code>&threads[i]</code></td><td>Where to store the thread ID</td></tr>
+    <tr><td><code>NULL</code></td><td>Default thread attributes</td></tr>
+    <tr><td><code>watch_file</code></td><td>Function the thread will run</td></tr>
+    <tr><td><code>w</code></td><td>Argument passed to <code>watch_file</code></td></tr>
+  </table>
+
+  <h3>pthread_join</h3>
+  <p>After creating all threads, the main thread calls <code>pthread_join</code> for each one. This blocks the main thread until that thread exits. Without join, the program would exit immediately and kill all threads.</p>
+
+  <h3>popen — running inotifywait as a stream</h3>
+  <p><code>popen(cmd, "r")</code> runs a shell command and returns a FILE* to read its output line by line. Here each thread runs <code>inotifywait -m</code> through popen, so every line printed by inotifywait is one event that triggers <code>capture_forensics</code>.</p>
+
+  <h2>Thread vs Process: the key difference</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>fork mode (Bash &amp;)</h4>
+      <p>Each <code>( ) &</code> creates a completely separate process. Separate memory, separate file descriptors. The kernel must copy the parent's memory space.</p>
+    </div>
+    <div class="card">
+      <h4>thread mode (pthreads)</h4>
+      <p>All threads live in the <strong>same process</strong>. They share the same memory space and file descriptors. Lighter weight, faster creation, lower memory usage.</p>
+    </div>
+  </div>
+
+  <div class="callout callout-green">
+    <strong>Verify it on Kali</strong>
+    <code>cat /proc/$(pgrep monitor_thread)/status | grep Threads</code><br/>
+    You will see <code>Threads: N</code> where N equals the number of canary files — all inside one single process.
+  </div>
+</div>
+
+<!-- ─────────────── PAGE: LOG.SH ─────────────── -->
+<div class="page" id="page-log">
+  <h1>lib/log.sh</h1>
+  <p class="subtitle">Logging utilities — writes every event to terminal and log file simultaneously</p>
+
+  <h2>Full Source</h2>
+  <pre style="position:relative"><div class="code-label">lib/log.sh</div><code class="language-bash">#!/bin/bash
+
+init_log_dir() {
+    mkdir -p "${LOG_DIR}" || { echo "ERROR: cannot create log dir ${LOG_DIR}" >&2; exit 1; }
+    touch "${LOG_FILE}"
+}
+
+_log() {
+    local level="$1"
+    local message="$2"
+    echo "$(date +'%Y-%m-%d-%H-%M-%S') : $(whoami) : ${level} : ${message}" | tee -a "${LOG_FILE}"
+}
+
+log_info()  { _log "INFOS" "$1"; }
+log_error() { _log "ERROR" "$1" >&2; }
+log_alert() { _log "ALERT" "$1"; }</code></pre>
+
+  <h2>How _log() works</h2>
+  <p>The core of the logging system is one line:</p>
+  <pre><code class="language-bash">echo "..." | tee -a "${LOG_FILE}"</code></pre>
+  <p><code>tee -a</code> reads from stdin and writes to <strong>two places at once</strong>: standard output (the terminal) and the log file (in append mode <code>-a</code>). This means you always see alerts live on screen while they are also permanently saved.</p>
+
+  <h2>Log levels</h2>
+  <table>
+    <tr><th>Function</th><th>Level tag</th><th>Goes to</th><th>Used for</th></tr>
+    <tr><td><code>log_info()</code></td><td><code>INFOS</code></td><td>stdout + file</td><td>Normal progress messages</td></tr>
+    <tr><td><code>log_error()</code></td><td><code>ERROR</code></td><td>stderr + file</td><td>Failures, missing tools, bad args</td></tr>
+    <tr><td><code>log_alert()</code></td><td><code>ALERT</code></td><td>stdout + file</td><td>Canary access detected</td></tr>
+  </table>
+
+  <div class="callout callout-info">
+    <strong>Why stderr for errors?</strong>
+    <code>log_error</code> redirects to <code>>&2</code> (stderr). This lets scripts that call canaryfs separate normal output from error messages, for example: <code>./canaryfs ... 2>/dev/null</code> would hide errors but show info/alerts.
+  </div>
+
+  <h2>Log file location</h2>
+  <p>Default: <code>/var/log/canaryfs/history.log</code><br/>
+  Override with: <code>./canaryfs -l /tmp/mylogs /home/hamza</code></p>
+  <p>Watch it live: <code>tail -f /var/log/canaryfs/history.log</code></p>
+</div>
+
+<!-- ─────────────── PAGE: ALERT.SH ─────────────── -->
+<div class="page" id="page-alert">
+  <h1>lib/alert.sh</h1>
+  <p class="subtitle">Sends alerts to syslog and desktop — only when the -a flag is set</p>
+
+  <h2>Full Source</h2>
+  <pre style="position:relative"><div class="code-label">lib/alert.sh</div><code class="language-bash">#!/bin/bash
+
+fire_alert() {
+    local message="$1"
+    [[ "${ALERT_MODE}" != true ]] && return   # do nothing if -a was not set
+
+    logger -t "canaryfs" -p auth.warning "${message}"   # write to syslog
+
+    if command -v notify-send &>/dev/null; then          # if desktop notifs available
+        notify-send --urgency=critical "canaryfs ALERT" "${message}"
+    fi
+}</code></pre>
+
+  <h2>Two alert channels</h2>
+  <div class="grid2">
+    <div class="card">
+      <h4>logger → syslog</h4>
+      <p><code>logger</code> is a standard Unix command that writes a message to the system log daemon. Flag <code>-t canaryfs</code> tags the message, <code>-p auth.warning</code> sets the facility and severity. The message ends up in <code>/var/log/syslog</code> or <code>/var/log/auth.log</code>.</p>
+    </div>
+    <div class="card">
+      <h4>notify-send → desktop popup</h4>
+      <p><code>notify-send</code> sends a notification to the desktop notification daemon (works on GNOME, KDE, etc.). <code>--urgency=critical</code> makes it appear in red with high priority. It is optional — checked with <code>command -v</code> before calling.</p>
+    </div>
+  </div>
+
+  <h2>Why guard with ALERT_MODE?</h2>
+  <p>Writing to syslog for every test run would pollute system logs. The <code>-a</code> flag makes it opt-in — you only enable it in production monitoring, not during development or testing.</p>
+
+  <h2>Read syslog entries on Kali</h2>
+  <pre><code class="language-bash">tail -f /var/log/syslog | grep canaryfs
+# or
+journalctl -f -t canaryfs</code></pre>
+</div>
+
+<!-- ─────────────── PAGE: RESTORE.SH ─────────────── -->
+<div class="page" id="page-restore">
+  <h1>lib/restore.sh</h1>
+  <p class="subtitle">Removes all planted canary files — requires root privileges</p>
+
+  <h2>Full Source</h2>
+  <pre style="position:relative"><div class="code-label">lib/restore.sh</div><code class="language-bash">#!/bin/bash
+
+run_restore() {
+    if [[ $EUID -ne 0 ]]; then           # EUID = effective user ID; 0 = root
+        log_error "Option -r requires root privileges"
+        show_help; exit 104
+    fi
+
+    if [[ ! -f "${CANARY_REGISTRY}" ]]; then
+        log_info "No canary registry found — nothing to restore"
+        return 0
+    fi
+
+    local count=0
+    log_info "Removing all planted canaries ..."
+
+    while IFS= read -r canary_file; do   # read registry line by line
+        if [[ -f "${canary_file}" ]]; then
+            rm -f "${canary_file}"
+            log_info "Removed: ${canary_file}"
+            (( count++ ))
+        fi
+    done &lt; "${CANARY_REGISTRY}"
+
+    rm -f "${CANARY_REGISTRY}"           # delete the registry itself
+    log_info "Restore complete — ${count} canary files removed"
+}</code></pre>
+
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li>
+      <strong>Check for root</strong><br/>
+      <code>$EUID</code> is the <em>Effective User ID</em>. Root always has EUID 0. Any non-zero value means the script is not running as root, so it exits with code 104.
+    </li>
+    <li>
+      <strong>Check registry exists</strong><br/>
+      If <code>/tmp/.canaryfs_registry</code> doesn't exist, there's nothing to clean up. Exit gracefully.
+    </li>
+    <li>
+      <strong>Delete each canary</strong><br/>
+      Read the registry line by line. For each path, check the file still exists (<code>-f</code>) then remove it with <code>rm -f</code>. The <code>-f</code> on rm means no error if already gone.
+    </li>
+    <li>
+      <strong>Delete the registry</strong><br/>
+      After all canaries are removed, the registry file itself is deleted so future runs start clean.
+    </li>
+  </ol>
+
+  <div class="callout callout-alert">
+    <strong>Why root only?</strong>
+    Canary files may have been planted in system directories (like <code>/etc</code>) that require elevated permissions to delete. Also, restricting restore to root prevents a non-privileged attacker from simply removing the canaries after being detected.
+  </div>
+
+  <h2>Usage</h2>
+  <pre><code class="language-bash">sudo ./canaryfs -r /home/hamza</code></pre>
+  <p>The <code>-r</code> flag is caught in <code>parse_args()</code> before any other processing and calls <code>run_restore()</code> immediately.</p>
+</div>
+
+<!-- ─────────────── PAGE: TESTS ─────────────── -->
+<div class="page" id="page-tests">
+  <h1>Test Scenarios</h1>
+  <p class="subtitle">Three scripts to measure performance and validate all execution modes</p>
+
+  <h2>Overview</h2>
+  <table>
+    <tr><th>Script</th><th>Canaries</th><th>Directories</th><th>Goal</th></tr>
+    <tr><td><code>test_light.sh</code></td><td>5</td><td>1</td><td>Baseline detection time per mode</td></tr>
+    <tr><td><code>test_medium.sh</code></td><td>50 (10×5)</td><td>5</td><td>Compare fork vs thread under load</td></tr>
+    <tr><td><code>test_heavy.sh</code></td><td>200 (20×10)</td><td>10</td><td>Stress test all modes at max load</td></tr>
+  </table>
+
+  <h2>test_light.sh — Baseline</h2>
+  <pre style="position:relative"><div class="code-label">tests/test_light.sh</div><code class="language-bash">#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TEST_DIR="/tmp/canaryfs_test_light"
+RESULTS_FILE="/tmp/canaryfs_light_results.txt"
+
+mkdir -p "${TEST_DIR}"
+> "${RESULTS_FILE}"
+
+echo "=== LIGHT TEST (5 canaries, 1 directory) ===" | tee -a "${RESULTS_FILE}"
+
+for mode in fork thread subshell; do
+    echo "--- Mode: ${mode} ---" | tee -a "${RESULTS_FILE}"
+
+    START=$(date +%s%N)                       # nanosecond timestamp
+    "${SCRIPT_DIR}/canaryfs" -${mode:0:1} -p 5 "${TEST_DIR}" &
+    WATCHER_PID=$!
+
+    sleep 1                                   # wait for watcher to start
+
+    TRIGGER_START=$(date +%s%N)
+    cat "${TEST_DIR}/.env" &>/dev/null        # trigger the canary
+    TRIGGER_END=$(date +%s%N)
+
+    sleep 1                                   # let detection fire
+    kill "${WATCHER_PID}" 2>/dev/null
+    END=$(date +%s%N)
+
+    TOTAL_MS=$(( (END - START) / 1000000 ))
+    TRIGGER_MS=$(( (TRIGGER_END - TRIGGER_START) / 1000000 ))
+
+    echo "Total runtime : ${TOTAL_MS} ms"  | tee -a "${RESULTS_FILE}"
+    echo "Trigger time  : ${TRIGGER_MS} ms" | tee -a "${RESULTS_FILE}"
+
+    sudo "${SCRIPT_DIR}/canaryfs" -r "${TEST_DIR}"   # clean up
+done</code></pre>
+
+  <h3>Key technique: nanosecond timing</h3>
+  <p><code>date +%s%N</code> returns Unix time in nanoseconds. Subtracting two values and dividing by 1,000,000 gives milliseconds. This is much more precise than <code>date +%s</code> (which only gives seconds).</p>
+
+  <h3>The mode flag shortcut</h3>
+  <p><code>-${mode:0:1}</code> takes the first character of the mode string: <code>fork</code> → <code>f</code>, <code>thread</code> → <code>t</code>, <code>subshell</code> → <code>s</code>. So the loop automatically tests all three modes with the right flag.</p>
+
+  <h2>test_medium.sh — Moderate Load</h2>
+  <pre style="position:relative"><div class="code-label">tests/test_medium.sh</div><code class="language-bash">#!/bin/bash
+DIRS=()
+for i in $(seq 1 5); do
+    d="/tmp/canaryfs_test_medium_${i}"
+    mkdir -p "${d}"
+    DIRS+=("${d}")
+done
+
+for mode in fork thread subshell; do
+    PIDS=()
+    START=$(date +%s%N)
+
+    for dir in "${DIRS[@]}"; do
+        "${SCRIPT_DIR}/canaryfs" -${mode:0:1} -p 10 "${dir}" &   # 10 canaries per dir
+        PIDS+=($!)
+    done
+
+    sleep 2
+
+    for dir in "${DIRS[@]}"; do
+        cat "${dir}/.env"    &>/dev/null &   # trigger in all dirs
+        cat "${dir}/id_rsa"  &>/dev/null &   # simultaneously
+    done
+    wait
+
+    sleep 1
+    for pid in "${PIDS[@]}"; do kill "${pid}" 2>/dev/null; done
+    END=$(date +%s%N)
+
+    echo "Total runtime : $(( (END - START) / 1000000 )) ms"
+done</code></pre>
+
+  <h2>test_heavy.sh — Stress Test</h2>
+  <pre style="position:relative"><div class="code-label">tests/test_heavy.sh</div><code class="language-bash">#!/bin/bash
+BASE="/tmp/canaryfs_test_heavy"
+DIRS=()
+for i in $(seq 1 10); do
+    d="${BASE}/dir_${i}"; mkdir -p "${d}"; DIRS+=("${d}")
+done
+
+for mode in fork thread subshell; do
+    PIDS=()
+    START=$(date +%s%N)
+
+    for dir in "${DIRS[@]}"; do
+        "${SCRIPT_DIR}/canaryfs" -${mode:0:1} -p 20 "${dir}" &   # 20 canaries × 10 dirs = 200
+        PIDS+=($!)
+    done
+
+    sleep 3
+
+    TRIGGER_START=$(date +%s%N)
+    for dir in "${DIRS[@]}"; do
+        for f in .env id_rsa credentials.json shadow.bak backup.sql; do
+            [[ -f "${dir}/${f}" ]] && cat "${dir}/${f}" &>/dev/null &   # trigger all types
+        done
+    done
+    wait
+    TRIGGER_END=$(date +%s%N)
+
+    sleep 2
+    for pid in "${PIDS[@]}"; do kill "${pid}" 2>/dev/null; done
+    END=$(date +%s%N)
+
+    echo "Total runtime    : $(( (END - START) / 1000000 )) ms"
+    echo "Trigger duration : $(( (TRIGGER_END - TRIGGER_START) / 1000000 )) ms"
+    echo "Canaries watched : $(wc -l &lt; /tmp/.canaryfs_registry 2>/dev/null)"
+
+    for dir in "${DIRS[@]}"; do sudo "${SCRIPT_DIR}/canaryfs" -r "${dir}"; done
+done
+rm -rf "${BASE}"</code></pre>
+
+  <h2>What to look for in results</h2>
+  <ul>
+    <li><strong>Fork vs Thread speed</strong>: Thread mode should start faster because creating a pthread is cheaper than forking a process.</li>
+    <li><strong>Trigger time</strong>: How long it takes for the attacker's <code>cat</code> command to complete — should be near 0ms since the file is tiny.</li>
+    <li><strong>Detection latency</strong>: The delay between the trigger and the ALERT appearing in the log. This depends on inotify event delivery speed.</li>
+    <li><strong>Subshell under heavy load</strong>: Should handle 200 canaries fine since it's essentially the same as fork but detached.</li>
+  </ul>
+
+  <h2>Run the tests on Kali</h2>
+  <pre><code class="language-bash">cd ~/canaryfs
+chmod +x tests/*.sh
+
+bash tests/test_light.sh
+cat /tmp/canaryfs_light_results.txt
+
+bash tests/test_medium.sh
+cat /tmp/canaryfs_medium_results.txt
+
+bash tests/test_heavy.sh
+cat /tmp/canaryfs_heavy_results.txt</code></pre>
+</div>
+
+</main>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => { hljs.highlightAll(); });
+
+  function show(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+
+    const target = document.getElementById('page-' + page);
+    const navLink = document.getElementById('nav-' + page);
+    if (target) target.classList.add('active');
+    if (navLink) navLink.classList.add('active');
+
+    window.scrollTo(0, 0);
+    return false;
+  }
+</script>
+
+</body>
+</html>
