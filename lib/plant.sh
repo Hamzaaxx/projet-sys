@@ -1,32 +1,27 @@
 #!/bin/bash
-# lib/plant.sh — Canary file generation logic
+# lib/plant.sh — Create fake bait files in the target directory
 
 CANARY_TYPES=("id_rsa" ".env" "credentials.json" "shadow.bak" "backup.sql")
 
 plant_canaries() {
     local target_dir="$1"
     local count="$2"
-    local planted=0
 
-    > "${CANARY_REGISTRY}"   # reset registry
-
+    > "${CANARY_REGISTRY}"
     log_info "Planting ${count} canary files in ${target_dir}"
 
-    while [[ ${planted} -lt ${count} ]]; do
-        local type="${CANARY_TYPES[$((planted % ${#CANARY_TYPES[@]}))]}"
+    for (( i=0; i<count; i++ )); do
+        local type="${CANARY_TYPES[$((i % ${#CANARY_TYPES[@]}))]}"
         local dest="${target_dir}/${type}"
-
-        _generate_canary "${type}" "${dest}"
+        _write_canary "${type}" "${dest}"
         echo "${dest}" >> "${CANARY_REGISTRY}"
-
-        log_info "Planted canary: ${dest}"
-        (( planted++ ))
+        log_info "Planted: ${dest}"
     done
 
-    log_info "Done planting ${planted} canary files"
+    log_info "Done — ${count} canary files planted"
 }
 
-_generate_canary() {
+_write_canary() {
     local type="$1"
     local dest="$2"
     local template="${SCRIPT_DIR}/canaries/${type}.tpl"
@@ -34,27 +29,17 @@ _generate_canary() {
     if [[ -f "${template}" ]]; then
         cp "${template}" "${dest}"
     else
-        _generate_inline "${type}" "${dest}"
-    fi
-
-    chmod 600 "${dest}"
-}
-
-_generate_inline() {
-    local type="$1"
-    local dest="$2"
-
-    case "${type}" in
-        id_rsa)
-            cat > "${dest}" <<'EOF'
+        case "${type}" in
+            id_rsa)
+                cat > "${dest}" <<'EOF'
 -----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAA[FAKE_KEY_DATA_DO_NOT_USE]AAAAB3NzaC1yc2EAAAADAQAB
 AAABgQC2fake+key+data+here+for+canary+purposes+only+this+is+not+a+real+key
 -----END OPENSSH PRIVATE KEY-----
 EOF
-            ;;
-        .env)
-            cat > "${dest}" <<'EOF'
+                ;;
+            .env)
+                cat > "${dest}" <<'EOF'
 APP_ENV=production
 DB_HOST=db.internal.company.com
 DB_USER=admin
@@ -63,9 +48,9 @@ AWS_ACCESS_KEY_ID=AKIAIOSFODNN7FAKE123
 AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYFAKEKEY99
 JWT_SECRET=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.FAKE
 EOF
-            ;;
-        credentials.json)
-            cat > "${dest}" <<'EOF'
+                ;;
+            credentials.json)
+                cat > "${dest}" <<'EOF'
 {
   "type": "service_account",
   "project_id": "my-prod-project",
@@ -75,16 +60,16 @@ EOF
   "client_id": "123456789000000000000"
 }
 EOF
-            ;;
-        shadow.bak)
-            cat > "${dest}" <<'EOF'
+                ;;
+            shadow.bak)
+                cat > "${dest}" <<'EOF'
 root:$6$FakeHash$abcdefghijklmnopqrstuvwxyz0123456789ABCDEF:19000:0:99999:7:::
 admin:$6$FakeHash$zyxwvutsrqponmlkjihgfedcba9876543210FEDCBA:19000:0:99999:7:::
 deploy:$6$FakeHash$AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRr:19001:0:99999:7:::
 EOF
-            ;;
-        backup.sql)
-            cat > "${dest}" <<'EOF'
+                ;;
+            backup.sql)
+                cat > "${dest}" <<'EOF'
 -- MySQL dump 10.13  Distrib 8.0.32, for Linux (x86_64)
 -- Host: localhost  Database: production_db
 CREATE TABLE users (
@@ -96,6 +81,9 @@ CREATE TABLE users (
 );
 INSERT INTO users VALUES (1,'admin@company.com','$2b$12$FakeHashedPassword','sk_live_FAKEAPIKEY123456','admin');
 EOF
-            ;;
-    esac
+                ;;
+        esac
+    fi
+
+    chmod 600 "${dest}"
 }

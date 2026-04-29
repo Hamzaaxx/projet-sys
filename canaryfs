@@ -1,41 +1,32 @@
 #!/bin/bash
 # canaryfs — Honeypot Canary File System Monitor
-# ENSET Mohammedia 2026 — Systèmes d'Exploitation Mini-Project
+# ENSET Mohammedia 2026 — Systèmes d'Exploitation
 
-# ─────────────────────────────────────────
-# SECTION 1 — CONFIGURATION & GLOBALS
-# ─────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-PROGRAM_NAME="canaryfs"
-VERSION="1.0"
-LOG_DIR="/var/log/${PROGRAM_NAME}"
+LOG_DIR="/var/log/canaryfs"
 LOG_FILE="${LOG_DIR}/history.log"
 CANARY_COUNT=10
 TARGET_DIR=""
-EXEC_MODE=""        # fork | thread | subshell
+EXEC_MODE=""
 ALERT_MODE=false
-CANARY_REGISTRY="/tmp/.canaryfs_registry"   # tracks planted file paths
+CANARY_REGISTRY="/tmp/.canaryfs_registry"
+MONITOR_THREAD_BIN="${SCRIPT_DIR}/lib/monitor_thread"
 
-# Source library modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/log.sh"
 source "${SCRIPT_DIR}/lib/plant.sh"
 source "${SCRIPT_DIR}/lib/monitor.sh"
 source "${SCRIPT_DIR}/lib/alert.sh"
 source "${SCRIPT_DIR}/lib/restore.sh"
 
-# ─────────────────────────────────────────
-# SECTION 2 — HELP / MAN-PAGE
-# ─────────────────────────────────────────
-
 show_help() {
     cat <<EOF
 
 NAME
-    ${PROGRAM_NAME} — Honeypot Canary File System Monitor
+    canaryfs — Honeypot Canary File System Monitor
 
 SYNOPSIS
-    ${PROGRAM_NAME} [OPTIONS] <target_directory>
+    canaryfs [OPTIONS] <target_directory>
 
 DESCRIPTION
     Plants fake bait files (SSH keys, .env, credentials, etc.) in a target
@@ -43,42 +34,35 @@ DESCRIPTION
     alert capturing user, process, PID, UID, and timestamp.
 
 OPTIONS
-    -h              Show this help message and exit
-    -f              Deploy and monitor using fork (child processes)
-    -t              Deploy and monitor using threads (background watchers)
-    -s              Run monitor as a background subshell daemon
-    -l <dir>        Custom log directory (default: /var/log/canaryfs)
-    -r              Remove all planted canaries — ROOT ONLY
-    -p <n>          Number of canary files to plant (default: 10)
-    -a              Alert mode: also write to syslog and send desktop notification
+    -h          Show this help message and exit
+    -f          Monitor using fork (one child process per canary)
+    -t          Monitor using POSIX threads (C/pthreads)
+    -s          Monitor in a background subshell (daemon mode)
+    -l <dir>    Custom log directory (default: /var/log/canaryfs)
+    -r          Remove all planted canaries — ROOT ONLY
+    -p <n>      Number of canary files to plant (default: 10)
+    -a          Alert mode: write to syslog + send desktop notification
 
 EXAMPLES
-    ${PROGRAM_NAME} -t -p 10 /home/hamza
-    ${PROGRAM_NAME} -f -l /tmp/mylogs /var/www
-    ${PROGRAM_NAME} -s /etc
-    sudo ${PROGRAM_NAME} -r /home/hamza
+    canaryfs -t -p 10 /home/hamza
+    canaryfs -f -l /tmp/mylogs /var/www
+    canaryfs -s /etc
+    sudo canaryfs -r /home/hamza
 
 ERROR CODES
-    100     Non-existent option
-    101     Missing mandatory parameter (target directory)
+    100     Unknown option
+    101     Missing target directory
     102     inotifywait not installed
     103     Target directory does not exist
-    104     Restore (-r) requires root privileges
+    104     Restore requires root privileges
 
 LOG FORMAT
     yyyy-mm-dd-hh-mm-ss : username : INFOS : message
     yyyy-mm-dd-hh-mm-ss : username : ERROR : message
     yyyy-mm-dd-hh-mm-ss : username : ALERT : canary accessed — file=... pid=... process=... uid=... ppid=...
 
-VERSION
-    ${PROGRAM_NAME} ${VERSION} — ENSET Mohammedia 2026
-
 EOF
 }
-
-# ─────────────────────────────────────────
-# SECTION 3 — ARGUMENT PARSING
-# ─────────────────────────────────────────
 
 parse_args() {
     local opt
@@ -92,119 +76,89 @@ parse_args() {
             l) LOG_DIR="${OPTARG}"; LOG_FILE="${LOG_DIR}/history.log" ;;
             r) run_restore; exit $? ;;
             p) CANARY_COUNT="${OPTARG}" ;;
-            :)
-                log_error "Option -${OPTARG} requires an argument"
-                show_help
-                exit 101
-                ;;
-            ?)
-                log_error "Unknown option: -${OPTARG}"
-                show_help
-                exit 100
-                ;;
+            :) log_error "Option -${OPTARG} requires an argument"; show_help; exit 101 ;;
+            ?) log_error "Unknown option: -${OPTARG}";             show_help; exit 100 ;;
         esac
     done
-
     shift $((OPTIND - 1))
     TARGET_DIR="$1"
 }
 
-# ─────────────────────────────────────────
-# SECTION 4 — VALIDATION
-# ─────────────────────────────────────────
-
 validate() {
-    # Check inotifywait is available
     if ! command -v inotifywait &>/dev/null; then
         log_error "inotifywait not found — install inotify-tools"
-        show_help
-        exit 102
+        show_help; exit 102
     fi
-
-    # Check target directory was provided
     if [[ -z "${TARGET_DIR}" ]]; then
         log_error "Missing mandatory parameter: target_directory"
-        show_help
-        exit 101
+        show_help; exit 101
     fi
-
-    # Check target directory exists
     if [[ ! -d "${TARGET_DIR}" ]]; then
         log_error "Target directory does not exist: ${TARGET_DIR}"
-        show_help
-        exit 103
+        show_help; exit 103
     fi
 }
 
-# ─────────────────────────────────────────
-# SECTION 5 — MAIN EXECUTION DISPATCHER
-# ─────────────────────────────────────────
-
-run() {
-    log_info "Starting ${PROGRAM_NAME} on ${TARGET_DIR} [mode: ${EXEC_MODE:-default}]"
-
-    # Plant canary files
-    plant_canaries "${TARGET_DIR}" "${CANARY_COUNT}"
-
-    # Dispatch to correct execution mode
-    case "${EXEC_MODE}" in
-        fork)     run_fork ;;
-        thread)   run_thread ;;
-        subshell) run_subshell ;;
-        *)        run_monitor_default ;;
-    esac
+compile_thread_monitor() {
+    [[ -x "${MONITOR_THREAD_BIN}" ]] && return
+    if ! command -v gcc &>/dev/null; then
+        log_error "gcc not found — install build-essential"
+        exit 1
+    fi
+    log_info "Compiling monitor_thread.c ..."
+    gcc -o "${MONITOR_THREAD_BIN}" "${SCRIPT_DIR}/lib/monitor_thread.c" -lpthread -Wall -O2 \
+        || { log_error "Compilation failed"; exit 1; }
+    log_info "Compiled: ${MONITOR_THREAD_BIN}"
 }
 
 run_fork() {
-    log_info "Launching monitor via fork"
-    # Each canary gets its own child process
-    for canary_file in $(cat "${CANARY_REGISTRY}"); do
-        (
-            monitor_file "${canary_file}"
-        ) &
-    done
+    log_info "Mode: fork — one child process per canary"
+    while IFS= read -r canary_file; do
+        ( monitor_file "${canary_file}" ) &
+    done < "${CANARY_REGISTRY}"
     wait
     log_info "All fork watchers exited"
 }
 
 run_thread() {
-    log_info "Launching monitor via threads (co-processes)"
-    declare -a PIDS=()
-    for canary_file in $(cat "${CANARY_REGISTRY}"); do
-        monitor_file "${canary_file}" &
-        PIDS+=($!)
-    done
-    for pid in "${PIDS[@]}"; do
-        wait "${pid}"
-    done
+    log_info "Mode: thread — POSIX pthreads via C"
+    mapfile -t files < "${CANARY_REGISTRY}"
+    "${MONITOR_THREAD_BIN}" "${LOG_FILE}" "${files[@]}"
     log_info "All thread watchers exited"
 }
 
 run_subshell() {
-    log_info "Launching monitor in background subshell (daemon mode)"
+    log_info "Mode: subshell — background daemon"
     (
-        for canary_file in $(cat "${CANARY_REGISTRY}"); do
+        while IFS= read -r canary_file; do
             monitor_file "${canary_file}" &
-        done
+        done < "${CANARY_REGISTRY}"
         wait
     ) &
-    log_info "Daemon PID: $! — running in background"
-    echo "canaryfs daemon started. PID: $!"
+    log_info "Daemon PID: $!"
 }
 
-run_monitor_default() {
-    log_info "Launching monitor in default (sequential) mode"
+run_default() {
+    log_info "Mode: default — sequential directory watch"
     monitor_directory "${TARGET_DIR}"
 }
 
-# ─────────────────────────────────────────
-# SECTION 6 — ENTRY POINT
-# ─────────────────────────────────────────
+run() {
+    log_info "Starting canaryfs on ${TARGET_DIR} [mode: ${EXEC_MODE:-default}]"
+    plant_canaries "${TARGET_DIR}" "${CANARY_COUNT}"
+    case "${EXEC_MODE}" in
+        fork)     run_fork ;;
+        thread)   run_thread ;;
+        subshell) run_subshell ;;
+        *)        run_default ;;
+    esac
+}
 
 main() {
     parse_args "$@"
     init_log_dir
     validate
+    [[ "${EXEC_MODE}" == "thread" ]] && compile_thread_monitor
     run
 }
 

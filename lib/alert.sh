@@ -1,20 +1,13 @@
 #!/bin/bash
-# lib/alert.sh — Alert and notification logic
+# lib/alert.sh — Send alerts to syslog and desktop when -a flag is set
 
 fire_alert() {
     local message="$1"
+    [[ "${ALERT_MODE}" != true ]] && return
 
-    # Always print to terminal (already done by log_alert via tee)
+    logger -t "canaryfs" -p auth.warning "${message}"
 
-    if [[ "${ALERT_MODE}" == true ]]; then
-        # Write to syslog
-        logger -t "${PROGRAM_NAME}" -p auth.warning "${message}"
-
-        # Desktop notification if available
-        if command -v notify-send &>/dev/null; then
-            notify-send --urgency=critical \
-                "canaryfs ALERT" \
-                "${message}"
-        fi
+    if command -v notify-send &>/dev/null; then
+        notify-send --urgency=critical "canaryfs ALERT" "${message}"
     fi
 }
