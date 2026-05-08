@@ -4,9 +4,10 @@
 monitor_file() {
     local target_file="$1"
 
+    # Watching a single file — target_file is already the full path
     inotifywait -m -e access,open,modify "${target_file}" 2>/dev/null \
-    | while read -r dir event file; do
-        _capture_forensics "${dir}${file:-$(basename "${target_file}")}" "${event}"
+    | while read -r _dir event _rest; do
+        _capture_forensics "${target_file}" "${event}"
     done
 }
 
