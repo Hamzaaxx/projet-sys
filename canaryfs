@@ -4,6 +4,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Defaults — overridden by canaryfs.conf, then by command-line flags
 LOG_DIR="/var/log/canaryfs"
 LOG_FILE="${LOG_DIR}/history.log"
 CANARY_COUNT=10
@@ -13,11 +14,29 @@ ALERT_MODE=false
 CANARY_REGISTRY="/tmp/.canaryfs_registry"
 MONITOR_THREAD_BIN="${SCRIPT_DIR}/lib/monitor_thread"
 
+# Load user configuration file if present (overrides hardcoded defaults)
+if [[ -f "${SCRIPT_DIR}/canaryfs.conf" ]]; then
+    source "${SCRIPT_DIR}/canaryfs.conf"
+    LOG_FILE="${LOG_DIR}/history.log"   # rebuild path in case LOG_DIR changed
+fi
+
 source "${SCRIPT_DIR}/lib/log.sh"
 source "${SCRIPT_DIR}/lib/plant.sh"
 source "${SCRIPT_DIR}/lib/monitor.sh"
 source "${SCRIPT_DIR}/lib/alert.sh"
 source "${SCRIPT_DIR}/lib/restore.sh"
+
+# Cleanup on Ctrl+C / SIGTERM — kill all child watchers
+cleanup() {
+    echo
+    log_info "Received signal — stopping all watchers..."
+    pkill -P $$ inotifywait     2>/dev/null
+    pkill -P $$ monitor_thread  2>/dev/null
+    pkill -P $$ -f monitor_file 2>/dev/null
+    log_info "canaryfs stopped cleanly"
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
 
 show_help() {
     cat <<EOF

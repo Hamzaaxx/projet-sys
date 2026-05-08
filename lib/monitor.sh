@@ -29,7 +29,12 @@ _capture_forensics() {
     local event="$2"
 
     local lsof_info proc_name pid uid ppid
-    lsof_info=$(lsof "${file}" 2>/dev/null | tail -n +2 | head -1)
+    # Retry lsof up to 5 times — fast commands (cat) close file before lsof sees it
+    for attempt in 1 2 3 4 5; do
+        lsof_info=$(lsof "${file}" 2>/dev/null | tail -n +2 | head -1)
+        [[ -n "${lsof_info}" ]] && break
+        sleep 0.001
+    done
     proc_name=$(echo "${lsof_info}" | awk '{print $1}')
     pid=$(echo "${lsof_info}"       | awk '{print $2}')
     uid=$(echo "${lsof_info}"       | awk '{print $3}')

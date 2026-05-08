@@ -47,14 +47,21 @@ static void capture_forensics(const char *canary_file, const char *event,
     char uid_str[32]    = "unknown";
     char ppid_str[32]   = "unknown";
 
-    /* run lsof and capture first data line */
+    /* run lsof — retry up to 5 times within 5ms because fast commands
+       (like cat) close the file before lsof can see them */
     snprintf(cmd, sizeof(cmd), "lsof '%s' 2>/dev/null | awk 'NR==2'", canary_file);
-    FILE *fp = popen(cmd, "r");
-    if (fp) {
-        if (fgets(lsof_out, sizeof(lsof_out), fp)) {
-            sscanf(lsof_out, "%127s %31s %31s", proc_name, pid_str, uid_str);
+    for (int attempt = 0; attempt < 5; attempt++) {
+        FILE *fp = popen(cmd, "r");
+        if (fp) {
+            lsof_out[0] = '\0';
+            if (fgets(lsof_out, sizeof(lsof_out), fp) && lsof_out[0] != '\0') {
+                sscanf(lsof_out, "%127s %31s %31s", proc_name, pid_str, uid_str);
+                pclose(fp);
+                break;
+            }
+            pclose(fp);
         }
-        pclose(fp);
+        usleep(1000);  /* 1 ms */
     }
 
     /* read ppid from /proc if pid is known */
