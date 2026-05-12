@@ -142,7 +142,13 @@ run_fork() {
 run_thread() {
     log_info "Mode: thread — POSIX pthreads via C"
     mapfile -t files < "${CANARY_REGISTRY}"
-    "${MONITOR_THREAD_BIN}" "${LOG_FILE}" "${files[@]}"
+    # Pipe output so shell can fire desktop notifications for each ALERT line
+    "${MONITOR_THREAD_BIN}" "${LOG_FILE}" "${files[@]}" | while IFS= read -r line; do
+        echo "${line}"
+        if [[ "${line}" == *" ALERT "* ]]; then
+            fire_alert "${line#* ALERT : }"
+        fi
+    done
     log_info "All thread watchers exited"
 }
 
