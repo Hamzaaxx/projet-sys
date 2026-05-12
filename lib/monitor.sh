@@ -49,9 +49,8 @@ _capture_forensics() {
 
     local msg="canary accessed — file=${file} event=${event} pid=${pid} process=${proc_name} uid=${uid} ppid=${ppid}"
     log_alert "${msg}"
-    # Only fire desktop/syslog alert when we actually identified the process —
-    # otherwise the alert is useless and spams notifications.
-    if [[ "${pid}" != "unknown" && "${proc_name}" != "canaryfs" ]]; then
+    # Skip the alert if it was canaryfs itself planting the files (MODIFY on startup)
+    if [[ "${proc_name}" != "canaryfs" ]]; then
         fire_alert "${msg}"
     fi
 }
