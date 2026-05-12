@@ -85,5 +85,5 @@ EOF
         esac
     fi
 
-    chmod 600 "${dest}"
+    chmod 644 "${dest}"
 }
