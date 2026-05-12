@@ -22,9 +22,13 @@
 #include <errno.h>
 #include <sys/fanotify.h>
 
+/* Seconds between two alerts on the same file (avoids notification flood) */
+#define ALERT_COOLDOWN_SEC 3
+
 typedef struct {
-    char file[512];
-    char log_file[512];
+    char   file[512];
+    char   log_file[512];
+    time_t last_alert;   /* timestamp of last alert fired for this file */
 } WatchArgs;
 
 /* Map fanotify event mask to a short event name */
@@ -112,6 +116,20 @@ void *watch_file(void *arg) {
         for (meta = (struct fanotify_event_metadata *)buf;
              FAN_EVENT_OK(meta, len);
              meta = FAN_EVENT_NEXT(meta, len)) {
+
+            /* Skip events fired by the monitor itself */
+            if (meta->pid == getpid()) {
+                if (meta->fd >= 0) close(meta->fd);
+                continue;
+            }
+
+            /* Cooldown: skip if same file alerted less than ALERT_COOLDOWN_SEC ago */
+            time_t now = time(NULL);
+            if (now - w->last_alert < ALERT_COOLDOWN_SEC) {
+                if (meta->fd >= 0) close(meta->fd);
+                continue;
+            }
+            w->last_alert = now;
 
             char proc_name[128] = "unknown";
             char uid_str[32]    = "unknown";
