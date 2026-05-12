@@ -119,7 +119,11 @@ validate() {
 }
 
 compile_thread_monitor() {
-    [[ -x "${MONITOR_THREAD_BIN}" ]] && return
+    # Recompile if binary is missing OR if the C source was updated
+    if [[ -x "${MONITOR_THREAD_BIN}" ]] && \
+       [[ "${MONITOR_THREAD_BIN}" -nt "${SCRIPT_DIR}/lib/monitor_thread.c" ]]; then
+        return
+    fi
     if ! command -v gcc &>/dev/null; then
         log_error "gcc not found — install build-essential"
         exit 1

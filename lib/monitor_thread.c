@@ -24,6 +24,10 @@
 
 /* Seconds between two alerts on the same file (avoids notification flood) */
 #define ALERT_COOLDOWN_SEC 3
+/* Ignore all events during the first N seconds (file manager scans new files) */
+#define STARTUP_GRACE_SEC  2
+
+static time_t start_time;   /* set in main(), shared across all threads */
 
 typedef struct {
     char   file[512];
@@ -123,8 +127,15 @@ void *watch_file(void *arg) {
                 continue;
             }
 
-            /* Cooldown: skip if same file alerted less than ALERT_COOLDOWN_SEC ago */
             time_t now = time(NULL);
+
+            /* Grace period: ignore events right after startup (file manager scans) */
+            if (now - start_time < STARTUP_GRACE_SEC) {
+                if (meta->fd >= 0) close(meta->fd);
+                continue;
+            }
+
+            /* Cooldown: skip if same file alerted less than ALERT_COOLDOWN_SEC ago */
             if (now - w->last_alert < ALERT_COOLDOWN_SEC) {
                 if (meta->fd >= 0) close(meta->fd);
                 continue;
@@ -160,6 +171,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "       Or use a non-root mode:  ./canaryfs -f ...  /  -s ...\n");
         return 2;
     }
+
+    start_time = time(NULL);   /* record startup time for grace period */
 
     char *log_file = argv[1];
     int n = argc - 2;
