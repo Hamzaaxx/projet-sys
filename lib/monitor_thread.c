@@ -25,9 +25,45 @@
 /* Seconds between two alerts on the same file (avoids notification flood) */
 #define ALERT_COOLDOWN_SEC 3
 /* Ignore all events during the first N seconds (file manager scans new files) */
-#define STARTUP_GRACE_SEC  2
+#define STARTUP_GRACE_SEC  5
 
 static time_t start_time;   /* set in main(), shared across all threads */
+
+/* System processes that routinely scan files — never alert on them.
+ * Match is prefix-based so e.g. "tracker-miner-fs" matches "tracker". */
+static const char *SYSTEM_PROC_BLACKLIST[] = {
+    "tracker",       /* GNOME file indexer */
+    "baloo",         /* KDE file indexer */
+    "nautilus",      /* GNOME file manager */
+    "dolphin",       /* KDE file manager */
+    "thunar",        /* XFCE file manager */
+    "gvfsd",         /* GNOME virtual filesystem */
+    "gvfs",
+    "thumbnail",     /* thumbnailers */
+    "indexer",
+    "updatedb",      /* mlocate */
+    "mlocate",
+    "plocate",
+    "file",          /* mime detection */
+    "find",
+    "ls",            /* shell listing */
+    "stat",
+    "antivirus",     /* ClamAV etc. */
+    "clamd",
+    "freshclam",
+    "systemd",
+    "dbus",
+    NULL
+};
+
+static int is_system_process(const char *name) {
+    for (int i = 0; SYSTEM_PROC_BLACKLIST[i] != NULL; i++) {
+        size_t plen = strlen(SYSTEM_PROC_BLACKLIST[i]);
+        if (strncmp(name, SYSTEM_PROC_BLACKLIST[i], plen) == 0)
+            return 1;
+    }
+    return 0;
+}
 
 typedef struct {
     char   file[512];
@@ -135,6 +171,18 @@ void *watch_file(void *arg) {
                 continue;
             }
 
+            char proc_name[128] = "unknown";
+            char uid_str[32]    = "unknown";
+            char ppid_str[32]   = "unknown";
+
+            resolve_proc_info(meta->pid, proc_name, uid_str, ppid_str);
+
+            /* Skip known system processes (indexers, file managers, etc.) */
+            if (is_system_process(proc_name)) {
+                if (meta->fd >= 0) close(meta->fd);
+                continue;
+            }
+
             /* Cooldown: skip if same file alerted less than ALERT_COOLDOWN_SEC ago */
             if (now - w->last_alert < ALERT_COOLDOWN_SEC) {
                 if (meta->fd >= 0) close(meta->fd);
@@ -142,11 +190,6 @@ void *watch_file(void *arg) {
             }
             w->last_alert = now;
 
-            char proc_name[128] = "unknown";
-            char uid_str[32]    = "unknown";
-            char ppid_str[32]   = "unknown";
-
-            resolve_proc_info(meta->pid, proc_name, uid_str, ppid_str);
             write_alert(w->log_file, w->file, event_name(meta->mask),
                         meta->pid, proc_name, uid_str, ppid_str);
 
