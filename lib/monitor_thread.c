@@ -28,6 +28,7 @@
 #define STARTUP_GRACE_SEC  5
 
 static time_t start_time;   /* set in main(), shared across all threads */
+static pid_t  parent_pid;   /* the canaryfs bash script — ignore its events */
 
 /* System processes that routinely scan files — never alert on them.
  * Match is prefix-based so e.g. "tracker-miner-fs" matches "tracker". */
@@ -157,8 +158,8 @@ void *watch_file(void *arg) {
              FAN_EVENT_OK(meta, len);
              meta = FAN_EVENT_NEXT(meta, len)) {
 
-            /* Skip events fired by the monitor itself */
-            if (meta->pid == getpid()) {
+            /* Skip events fired by the monitor itself or its parent (canaryfs script) */
+            if (meta->pid == getpid() || meta->pid == parent_pid) {
                 if (meta->fd >= 0) close(meta->fd);
                 continue;
             }
@@ -216,6 +217,7 @@ int main(int argc, char *argv[]) {
     }
 
     start_time = time(NULL);   /* record startup time for grace period */
+    parent_pid = getppid();    /* canaryfs script PID — ignore its events */
 
     char *log_file = argv[1];
     int n = argc - 2;

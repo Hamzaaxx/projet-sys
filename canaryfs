@@ -26,16 +26,24 @@ source "${SCRIPT_DIR}/lib/monitor.sh"
 source "${SCRIPT_DIR}/lib/alert.sh"
 source "${SCRIPT_DIR}/lib/restore.sh"
 
-# Cleanup on Ctrl+C / SIGTERM — kill all child watchers
+# Cleanup on Ctrl+C / SIGTERM — kill ALL watchers (including orphans from prior runs)
 cleanup() {
     echo
     log_info "Received signal — stopping all watchers..."
     pkill -P $$ inotifywait     2>/dev/null
     pkill -P $$ monitor_thread  2>/dev/null
     pkill -P $$ -f monitor_file 2>/dev/null
+    # Also nuke any orphaned watchers from previous runs
+    pkill -f "monitor_thread"   2>/dev/null
+    pkill -f "inotifywait.*canary" 2>/dev/null
     log_info "canaryfs stopped cleanly"
     exit 0
 }
+
+# Kill any leftover watchers from a previous run BEFORE we start new ones
+pkill -f "monitor_thread"      2>/dev/null
+pkill -f "inotifywait.*honeypot" 2>/dev/null
+pkill -f "monitor_file"        2>/dev/null
 trap cleanup SIGINT SIGTERM
 
 show_help() {
