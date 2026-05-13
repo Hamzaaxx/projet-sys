@@ -3,7 +3,7 @@
 > **ENSET Mohammedia 2026 — Module: Systèmes d'Exploitation**
 > Université Hassan II de Casablanca
 
-A Bash-based cybersecurity tool that plants **fake bait files** ("canaries") across the filesystem and silently monitors them using the Linux kernel's **inotify** and **fanotify** subsystems. The moment any user, process, or malware touches a canary file, canaryfs captures a full forensic snapshot — process name, PID, UID, parent PID — and fires an alert.
+A Bash/C cybersecurity tool that plants **fake bait files** ("canaries") across the filesystem and silently monitors them using the Linux kernel's **inotify** and **fanotify** subsystems. The moment any user, process, or malware touches a canary file, canaryfs captures a full forensic snapshot — process name, PID, UID, parent PID — and fires an alert.
 
 This technique is used in real enterprise environments under the name *Canary Tokens* or *Honeypot Files*.
 
@@ -16,9 +16,10 @@ This technique is used in real enterprise environments under the name *Canary To
 - 🔬 **Atomic forensic capture** via `fanotify` — even microsecond-fast `cat` reads are caught with full process info
 - 🧠 **Real C/pthreads implementation** for the `-t` flag — verified with `/proc/<pid>/status`
 - 📜 **Triple-output logging** — terminal + log file + syslog (optional)
-- 🔔 **Desktop notifications** via `notify-send` (`-a` flag)
+- 🔔 **Desktop notifications** via `notify-send` (`-a` flag) — works correctly even under `sudo`
 - 🛡️ **Root-only restore** (`-r`) prevents attackers from cleaning up after detection
 - 🪝 **Clean signal handling** — Ctrl+C kills all watchers, no orphans
+- 🔄 **Auto-recompile** — C binary rebuilds automatically when source changes
 - 🎨 **Auto-loading config file** (`canaryfs.conf`)
 
 ---
@@ -27,7 +28,7 @@ This technique is used in real enterprise environments under the name *Canary To
 
 ```bash
 # 1. Install dependencies
-sudo apt install inotify-tools build-essential -y
+sudo apt install inotify-tools build-essential libnotify-bin -y
 
 # 2. Clone the repo
 git clone https://github.com/Hamzaaxx/projet-sys.git canaryfs
@@ -38,9 +39,11 @@ chmod +x canaryfs lib/*.sh tests/*.sh
 sudo mkdir -p /var/log/canaryfs
 sudo chown $USER:$USER /var/log/canaryfs
 
-# 4. Plant canaries and start monitoring
-mkdir /tmp/honeypot
-sudo ./canaryfs -t -p 5 /tmp/honeypot
+# 4. Create honeypot directory (one-time)
+mkdir -p /tmp/honeypot
+
+# 5. Plant canaries and start monitoring
+sudo ./canaryfs -t -p 5 -a /tmp/honeypot
 ```
 
 In another terminal, simulate an attacker:
@@ -48,9 +51,9 @@ In another terminal, simulate an attacker:
 cat /tmp/honeypot/.env
 ```
 
-🚨 An ALERT line appears immediately in the first terminal:
+🚨 An ALERT fires immediately — in the terminal AND as a desktop notification:
 ```
-2026-05-08-09-00-12 : root : ALERT : canary accessed — file=/tmp/honeypot/.env event=OPEN pid=12345 process=cat uid=1000 ppid=12000
+2026-05-12-09-00-15 : root : ALERT : canary accessed — file=/tmp/honeypot/.env event=OPEN pid=4821 process=cat uid=1000 ppid=4800
 ```
 
 ---
@@ -65,7 +68,7 @@ canaryfs [OPTIONS] <target_directory>
 
 | Flag | Description | Privileges |
 |------|-------------|------------|
-| `-h` | Display help and man-page | Any |
+| `-h` | Display help and exit | Any |
 | `-f` | Deploy via fork (one child process per canary) | Any |
 | `-t` | Real POSIX threads (C/pthreads + fanotify) | **Root** |
 | `-s` | Run as background subshell daemon | Any |
@@ -77,20 +80,20 @@ canaryfs [OPTIONS] <target_directory>
 ### Examples
 
 ```bash
-# Plant 10 canaries with thread mode (most reliable forensics)
-sudo ./canaryfs -t -p 10 /home/user
+# Best mode: threads + desktop alerts (recommended)
+sudo ./canaryfs -t -p 5 -a /tmp/honeypot
 
-# Fork mode with a custom log directory
-./canaryfs -f -l /tmp/mylogs /var/www
+# Fork mode with desktop alerts
+./canaryfs -f -p 5 -a /tmp/honeypot
 
-# Run as background daemon, monitor /etc
-./canaryfs -s /etc
+# Custom log directory
+sudo ./canaryfs -t -l /tmp/mylogs /tmp/honeypot
 
-# Enable desktop alerts and syslog logging
-./canaryfs -a -t /home/user
+# Background daemon
+./canaryfs -s /tmp/honeypot
 
-# Remove all planted canaries (root only)
-sudo ./canaryfs -r /home/user
+# Remove all planted canaries when done
+sudo ./canaryfs -r /tmp/honeypot
 ```
 
 ---
@@ -103,7 +106,7 @@ sudo ./canaryfs -r /home/user
         └──────────┬───────────────┘
                    │
         ┌──────────▼───────────────┐
-        │    plant_canaries()      │  → writes 5 fake files
+        │    plant_canaries()      │  → writes 5 fake files (chmod 644)
         └──────────┬───────────────┘
                    │
         ┌──────────▼───────────────┐
@@ -138,9 +141,20 @@ sudo ./canaryfs -r /home/user
 
 ### Why fanotify and not just inotify?
 
-The original implementation used `inotify + lsof`. The problem: by the time `lsof` ran, fast commands like `cat` had already closed the file, leading to `pid=unknown`.
+The original implementation used `inotify + lsof`. The problem: by the time `lsof` ran, fast commands like `cat` had already closed the file, giving `pid=unknown`.
 
-**fanotify** is a Linux kernel API that includes the PID **directly inside the event**. No race condition. Every access is captured with full forensics — even microsecond-fast reads.
+**fanotify** is a Linux kernel API that includes the PID **directly inside the event** — no race condition. Every access is captured with full forensics, even microsecond-fast reads.
+
+### Mode comparison
+
+| Mode | How it detects | Real PID | Root needed |
+|------|---------------|----------|-------------|
+| default | inotify + lsof | ❌ fast cmds | No |
+| `-f` fork | inotify + lsof | ❌ fast cmds | No |
+| `-t` thread | fanotify (kernel) | ✅ always | Yes |
+| `-s` subshell | inotify + lsof | ❌ fast cmds | No |
+
+**Always use `-t` for accurate forensics.**
 
 ---
 
@@ -150,9 +164,9 @@ The original implementation used `inotify + lsof`. The problem: by the time `lso
 canaryfs/
 ├── canaryfs                    # main executable script (entry point)
 ├── canaryfs.conf               # auto-loaded configuration defaults
-├── demo.sh                     # 5-minute interactive demo
+├── demo.sh                     # interactive demo script
 ├── lib/
-│   ├── plant.sh                # canary file generation
+│   ├── plant.sh                # canary file generation (chmod 644)
 │   ├── monitor.sh              # inotify watcher + lsof forensics
 │   ├── monitor_thread.c        # POSIX threads + fanotify (C)
 │   ├── alert.sh                # syslog & desktop notifications
@@ -162,11 +176,8 @@ canaryfs/
 │   ├── test_light.sh           # 5 canaries, 1 directory
 │   ├── test_medium.sh          # 50 canaries, 5 directories
 │   └── test_heavy.sh           # 200 canaries, 10 directories
-├── docs/
-│   └── index.html              # full documentation website
-└── scripts/
-    ├── create_issues.sh        # bash issue tracker
-    └── create_issues.ps1       # powershell issue tracker
+└── docs/
+    └── index.html              # full documentation website
 ```
 
 ---
@@ -180,7 +191,7 @@ canaryfs/
 | `build-essential` | `gcc` to compile the C binary | `sudo apt install build-essential` |
 | `lsof` | Forensic capture in fork/subshell modes | preinstalled |
 | `logger` | Syslog support (`-a` flag) | preinstalled |
-| `notify-send` | Desktop notifications (optional) | `sudo apt install libnotify-bin` |
+| `libnotify-bin` | Desktop notifications (`-a` flag) | `sudo apt install libnotify-bin` |
 
 ---
 
@@ -217,10 +228,10 @@ Results are saved to `/tmp/canaryfs_*_results.txt`.
 ## 📜 Log Format
 
 ```
-2026-05-08-09-00-12 : kali : INFOS : Starting canaryfs on /tmp/honeypot [mode: thread]
-2026-05-08-09-00-12 : kali : INFOS : Planted: /tmp/honeypot/.env
-2026-05-08-09-00-15 : kali : ALERT : canary accessed — file=/tmp/honeypot/.env event=OPEN pid=4821 process=cat uid=1000 ppid=4800
-2026-05-08-09-00-20 : kali : ERROR : inotifywait not found — install inotify-tools
+2026-05-12-09-00-11 : kali : INFOS : Starting canaryfs on /tmp/honeypot [mode: thread]
+2026-05-12-09-00-11 : kali : INFOS : Planted: /tmp/honeypot/.env
+2026-05-12-09-00-15 : kali : ALERT : canary accessed — file=/tmp/honeypot/.env event=OPEN pid=4821 process=cat uid=1000 ppid=4800
+2026-05-12-09-00-20 : kali : ERROR : inotifywait not found — install inotify-tools
 ```
 
 Default location: `/var/log/canaryfs/history.log` (overridable with `-l`).
@@ -229,18 +240,18 @@ Default location: `/var/log/canaryfs/history.log` (overridable with `-l`).
 
 ## 📚 Documentation
 
-A full page-by-page explanation of every script lives in [`docs/index.html`](docs/index.html). Open it directly in a browser, or enable GitHub Pages on this repo with **Source = `main` branch / `/docs` folder**.
+A full page-by-page explanation of every script lives in [`docs/index.html`](docs/index.html). Open it directly in a browser, or serve it via GitHub Pages (**Settings → Pages → Source: main / /docs**).
 
 ---
 
 ## 🎬 Demo
 
-Run the interactive 7-step demo:
+Run the interactive demo:
 ```bash
 ./demo.sh
 ```
 
-It walks through every option, shows real pthread verification via `/proc`, demonstrates forensic capture, and tests the cleanup trap — perfect for a 5-minute presentation.
+It walks through every option, shows real pthread verification via `/proc`, demonstrates forensic capture, and tests the cleanup trap.
 
 ---
 
