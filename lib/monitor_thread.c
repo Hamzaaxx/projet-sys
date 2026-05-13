@@ -25,7 +25,7 @@
 /* Seconds between two alerts on the same file (avoids notification flood) */
 #define ALERT_COOLDOWN_SEC 3
 /* Ignore all events during the first N seconds (file manager scans new files) */
-#define STARTUP_GRACE_SEC  5
+#define STARTUP_GRACE_SEC  2
 
 static time_t start_time;   /* set in main(), shared across all threads */
 static pid_t  parent_pid;   /* the canaryfs bash script — ignore its events */
