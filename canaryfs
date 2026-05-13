@@ -121,8 +121,9 @@ validate() {
         show_help; exit 101
     fi
     if [[ ! -d "${TARGET_DIR}" ]]; then
-        log_error "Target directory does not exist: ${TARGET_DIR}"
-        show_help; exit 103
+        mkdir -p "${TARGET_DIR}" 2>/dev/null \
+            || { log_error "Target directory does not exist and could not be created: ${TARGET_DIR}"; exit 103; }
+        log_info "Created target directory: ${TARGET_DIR}"
     fi
 }
 
